@@ -10,7 +10,7 @@
 说明：
   - 前端静态资源 live/static 随包打入，运行时经 live.paths.static_dir() 从解包目录读取。
   - 功能性辩论 prompt（debater_prompts/functional_prompts）随包打入，运行时由 live.prompts 动态读取。
-  - 双方与主审共用的方法论（methodology）随包打入，并复制到各自隔离工作目录后强制读取。
+  - 两份通用方法论与主审专用《如何深化辩论》随包打入，并复制到隔离工作目录后强制读取。
   - edge_tts / aiohttp 及其传递依赖用 collect_all 全量收集，避免运行时缺隐藏导入。
   - Piper 本机神经语音为**可选打包**：设环境变量 BUNDLE_PIPER=1 才把 piper-tts +
     onnxruntime + numpy 一并打入（exe 明显变大）。默认不打包——Piper 在 exe 里保持

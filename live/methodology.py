@@ -7,9 +7,14 @@ import shutil
 import sys
 from pathlib import Path
 
-METHODOLOGY_FILES: tuple[str, ...] = (
+SHARED_METHODOLOGY_FILES: tuple[str, ...] = (
     "辩论方法论.md",
     "逻辑与论辩学理论.md",
+)
+MODERATOR_METHODOLOGY_FILE = "如何深化辩论.md"
+METHODOLOGY_FILES: tuple[str, ...] = (
+    *SHARED_METHODOLOGY_FILES,
+    MODERATOR_METHODOLOGY_FILE,
 )
 
 
@@ -46,18 +51,22 @@ def install_into(work_dir: str | Path) -> Path:
 
 def prompt_instructions(role: str) -> str:
     """Short mandatory read/use contract; full documents stay on disk."""
-    files = "、".join(f"`methodology/{name}`" for name in METHODOLOGY_FILES)
     if role == "moderator":
+        files = "、".join(f"`methodology/{name}`" for name in METHODOLOGY_FILES)
         use = (
-            "把其中的图尔明模型、证据五维度、谬误检查、攻防与深化方法用于每次点评；"
-            "保持中立，指出双方论证负担、关键缺口与下一层争点。"
+            "必须把《如何深化辩论》作为主审点评的首要执行规范，逐次落实“对齐、检验、深化、"
+            "找支点、综合”，并用“进展 / 分歧 / 下一问”组织输出；再用另外两份文件中的"
+            "图尔明模型、证据五维度、谬误检查和论证负担补强判断。不得用泛泛的逻辑点评"
+            "替代《如何深化辩论》的流程。"
         )
     elif role == "prep":
+        files = "、".join(f"`methodology/{name}`" for name in SHARED_METHODOLOGY_FILES)
         use = (
             "把其中的破题、资料分级、论点构建、证据核验、攻防预演方法落实到备赛文件；"
             "不能只复述目录或声称已读。"
         )
     else:
+        files = "、".join(f"`methodology/{name}`" for name in SHARED_METHODOLOGY_FILES)
         use = (
             "把其中的论证结构、证据评估、质询、驳论、自由辩论与总结方法落实到实际发言；"
             "不能只复述目录或声称已读。"

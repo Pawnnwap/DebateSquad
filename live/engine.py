@@ -987,7 +987,8 @@ class LiveDebate:
         self._mod_runner.run_safe(
             message=(
                 f"[系统设定]\n{sysp}\n\n"
-                "请先完整读取两份共享方法论，再回复「主审已就位」。"
+                "请先完整读取两份共享方法论与 `methodology/如何深化辩论.md`，"
+                "确认将《如何深化辩论》作为每次点评的首要执行规范，再回复「主审已就位」。"
             ),
             session_id=self._mod_session, title="主审",
             model=self.cfg.moderator_model, cwd=mod_folder, pure=True,
@@ -1014,7 +1015,8 @@ class LiveDebate:
         try:
             out = self._mod_runner.run_safe(
                 message=(f"完整环节「{label}」已经结束，全部发言如下：\n----\n{body}\n----\n\n"
-                         "请对整个环节统一点评一次（≤100 字，犀利精炼，直指要害，逼向更深一层）："),
+                         "请严格使用《如何深化辩论》的主审流程，对整个环节统一点评一次；"
+                         "按“进展 / 分歧 / 下一问”组织，≤100 字，直指一个关键支点并逼向更深一层："),
                 session_id=self._mod_session, title="主审点评",
                 model=self.cfg.moderator_model, cwd=self.work_dir / "moderator",
                 pure=True, variant=self._variant(self.cfg.moderator_thinking))

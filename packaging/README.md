@@ -36,10 +36,10 @@ dist/AI-Debate-Live/AI-Debate-Live
 
 - `live/static/`：Web UI
 - `debater_prompts/functional_prompts/`：七类功能提示词
-- `methodology/`：双方和主审强制使用的两份方法论
+- `methodology/`：双方使用的两份通用方法论，以及主审强制使用的《如何深化辩论》
 - `edge-tts` 与异步 HTTP 依赖
 
-程序建立辩论时，会把方法论复制到每个阵营和主审的隔离工作目录。缺少方法论文件时构建直接失败。
+程序建立辩论时，会把三份方法论复制到每个阵营和主审的隔离工作目录。主审初始化与每次点评 prompt 都明确要求使用《如何深化辩论》。缺少任一文件时构建直接失败。
 
 ## 目标机器
 

@@ -17,11 +17,11 @@ function Remove-BuildArtifact {
 }
 
 Write-Host "[1/3] Install/check dependencies..." -ForegroundColor Cyan
-python -m pip install --upgrade pyinstaller edge-tts | Out-Host
+python -m pip install pyinstaller edge-tts | Out-Host
 # 可选：打包 Piper 本机神经语音（显著增大 exe）。设 BUNDLE_PIPER=1 启用。
 if ($env:BUNDLE_PIPER -in @("1","true","yes","on","TRUE","YES","ON")) {
     Write-Host "[1/3] BUNDLE_PIPER set -> installing piper-tts for bundling..." -ForegroundColor Cyan
-    python -m pip install --upgrade piper-tts | Out-Host
+    python -m pip install piper-tts | Out-Host
 }
 
 Write-Host "[2/3] Clean previous build artifacts..." -ForegroundColor Cyan
@@ -37,8 +37,12 @@ if (-not (Test-Path -LiteralPath $methodology -PathType Container)) {
     throw "Missing required methodology directory: $methodology"
 }
 $methodologyFiles = @(Get-ChildItem -LiteralPath $methodology -Filter "*.md" -File)
-if ($methodologyFiles.Count -lt 2 -or @($methodologyFiles | Where-Object Length -eq 0).Count -gt 0) {
-    throw "Methodology directory must contain at least two non-empty markdown files."
+if ($methodologyFiles.Count -lt 3 -or @($methodologyFiles | Where-Object Length -eq 0).Count -gt 0) {
+    throw "Methodology directory must contain at least three non-empty markdown files."
+}
+python -c "import importlib.util; s=importlib.util.spec_from_file_location('methodology_check', 'live/methodology.py'); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); m.validate_sources()"
+if ($LASTEXITCODE -ne 0) {
+    throw "Required methodology validation failed."
 }
 Remove-BuildArtifact "build\AI-Debate-Live"
 Remove-BuildArtifact "dist\AI-Debate-Live"

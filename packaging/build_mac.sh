@@ -17,12 +17,12 @@ safe_rm() {
 }
 
 echo "[1/3] 安装/校验依赖..."
-python3 -m pip install --upgrade pyinstaller edge-tts
+python3 -m pip install pyinstaller edge-tts
 # 可选：打包 Piper 本机神经语音（显著增大包体）。设 BUNDLE_PIPER=1 启用。
 case "${BUNDLE_PIPER:-}" in
   1|true|yes|on|TRUE|YES|ON)
     echo "[1/3] BUNDLE_PIPER 已设 -> 安装 piper-tts 以便打入包内..."
-    python3 -m pip install --upgrade piper-tts
+    python3 -m pip install piper-tts
     ;;
 esac
 
@@ -36,7 +36,7 @@ if [[ "$prompt_count" -lt 7 ]]; then
   echo "功能性 prompt 文件不足，预期至少 7 个 markdown 文件。" >&2
   exit 1
 fi
-for name in "辩论方法论.md" "逻辑与论辩学理论.md"; do
+for name in "辩论方法论.md" "逻辑与论辩学理论.md" "如何深化辩论.md"; do
   if [[ ! -f "$ROOT/methodology/$name" ]]; then
     echo "缺少必需的方法论文件: $ROOT/methodology/$name" >&2
     exit 1
