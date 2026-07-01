@@ -1,0 +1,55 @@
+# Python / local tooling
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+.idea/
+.vscode/
+.claude/
+.workbuddy/
+.env
+*.log
+
+# Build and runtime output
+build/
+dist/
+live_runs/
+.ai-debate-live/
+debate/
+*_tmp/
+*.mp3
+*.mp4
+*.wav
+
+# Local material unrelated to compiled DebateSquad app
+demo_video/
+research/
+special/
+video/
+keyframes_output/
+render_transcript_html.py
+test_visual.py
+_*.txt
+_*.png
+*keyframe*.png
+test_*.png
+
+# Retained local legacy batch-debate implementation; not part of public app
+data_collection/
+debater/
+debater_cli.py
+run_con_prep_then_debate.py
+run_debate_only.py
+debate_framework/config.py
+debate_framework/test_framework.py
+debate_framework/timer.py
+debater_prompts/*
+!debater_prompts/functional_prompts/
+!debater_prompts/functional_prompts/*.md
+
+# Runtime plugin examples are local development references, not bundled
+live/plugins_example/

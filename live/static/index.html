@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>实时辩论 · 真人 ⇄ AI</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#2b3240;
+    --txt:#e6edf3; --dim:#9aa7b4; --accent:#3b82f6; --accent2:#22c55e;
+    --pro:#3b82f6; --con:#ef4444; --host:#a78bfa; --mod:#f59e0b;
+    --radius:10px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;font-size:14px}
+  h1{font-size:18px;margin:0}
+  h2{font-size:14px;margin:0 0 10px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+  header{display:flex;align-items:center;gap:12px;padding:12px 18px;
+    border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5}
+  header .pill{margin-left:auto;font-size:12px;padding:4px 12px;border-radius:20px;
+    background:var(--panel2);color:var(--dim);border:1px solid var(--line)}
+  .wrap{display:grid;grid-template-columns:minmax(940px,1.35fr) minmax(420px,.65fr);gap:0;height:calc(100vh - 53px)}
+  .setup{overflow-y:auto;padding:18px;border-right:1px solid var(--line);background:var(--panel)}
+  .setup-grid{display:grid;grid-template-columns:minmax(300px,.7fr) minmax(560px,1.3fr);gap:16px;align-items:start}
+  .setup-section{min-width:0}
+  .setup-section.wide{grid-column:1 / -1}
+  .overview .ov-total{font-weight:700;font-size:13px;margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid var(--line);color:var(--accent2)}
+  .overview .ov-line{display:flex;gap:7px;align-items:baseline;padding:3px 0 3px 8px;border-left:3px solid var(--line);margin-bottom:3px;font-size:12.5px}
+  .overview .ov-line .ov-min{color:var(--dim);font-variant-numeric:tabular-nums;flex:0 0 auto;min-width:42px}
+  .stage{overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px}
+  #statusbar{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:10px;
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:8px 12px}
+  #statusbar #phaseInfo{font-weight:600}
+  #statusbar.paused{border-color:var(--mod)}
+  .thinking-card{border:1px dashed var(--accent2);border-radius:var(--radius);padding:10px 14px;
+    color:var(--dim);background:var(--panel2)}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);padding:12px}
+  label{display:block;font-size:12px;color:var(--dim);margin:8px 0 3px}
+  input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);
+    color:var(--txt);border-radius:8px;padding:7px 9px;font-size:13px;font-family:inherit}
+  textarea{resize:vertical;min-height:48px}
+  .row{display:flex;gap:8px}.row>*{flex:1}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  button{cursor:pointer;border:none;border-radius:8px;padding:9px 14px;font-size:13px;
+    font-weight:600;background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.go{background:var(--accent2);color:#04210f;border-color:var(--accent2)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.sm{padding:4px 9px;font-size:12px}
+  .toggle{display:flex;align-items:center;gap:8px;margin:6px 0;cursor:pointer;user-select:none}
+  .toggle input{width:auto}
+  .side-group{border:1px solid var(--line);border-radius:var(--radius);background:rgba(13,17,23,.35);margin-bottom:12px;overflow:hidden}
+  .side-group .side-title{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--bg)}
+  .side-group .side-title strong{font-size:14px}
+  .side-group .side-title .count{margin-left:auto;color:var(--dim);font-size:11px}
+  .side-group .side-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px;padding:10px}
+  .dbtr{border:1px solid var(--line);border-radius:var(--radius);padding:10px;background:var(--panel2);min-width:0}
+  .libentry{border:1px solid var(--line);border-radius:var(--radius);padding:10px;margin-bottom:10px;background:var(--panel2)}
+  .libentry .hd{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .dbtr .hd{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .dbtr .hd .tag{font-size:11px;padding:2px 7px;border-radius:6px;background:var(--bg);color:var(--dim)}
+  .dbtr .hd .seatline{font-weight:700;font-size:13px;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:4px 8px;white-space:nowrap}
+  .adv{margin-top:6px}
+  .adv summary{cursor:pointer;color:var(--dim);font-size:12px}
+  details.adv[open] summary{margin-bottom:6px}
+  .actions{display:flex;gap:8px;margin:14px 0 4px}
+  .actions>button{flex:1}
+  .hint{font-size:11px;color:var(--dim);margin-top:4px;line-height:1.5}
+  /* stage */
+  .turn{border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;
+    background:var(--panel2);animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .turn .meta{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px}
+  .turn .who{font-weight:700}
+  .turn .lab{color:var(--dim)}
+  .turn .cc{margin-left:auto;color:var(--dim);font-size:11px}
+  .turn .body{line-height:1.7;white-space:pre-wrap}
+  /* tabs */
+  #tabbar{display:flex;gap:6px;position:sticky;top:42px;z-index:2}
+  .tab{background:var(--panel2);border:1px solid var(--line);border-radius:8px 8px 0 0;
+    padding:6px 14px;font-size:13px;color:var(--dim);cursor:pointer}
+  .tab.active{color:var(--txt);border-bottom-color:var(--panel2);background:var(--panel2);font-weight:600}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent2);vertical-align:middle}
+  .tabpane{display:flex;flex-direction:column;gap:10px}
+  /* rendered markdown */
+  .md{line-height:1.7;white-space:normal}
+  .md p{margin:0 0 8px}
+  .md h1,.md h2,.md h3,.md h4{margin:10px 0 6px;line-height:1.3}
+  .md h1{font-size:18px}.md h2{font-size:16px}.md h3{font-size:15px}.md h4{font-size:14px}
+  .md ul,.md ol{margin:4px 0 8px;padding-left:22px}
+  .md li{margin:2px 0}
+  .md code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:12px}
+  .md pre{background:var(--bg);padding:10px;border-radius:8px;overflow-x:auto;border:1px solid var(--line)}
+  .md pre code{background:none;padding:0}
+  .md blockquote{margin:6px 0;padding:4px 12px;border-left:3px solid var(--line);color:var(--dim)}
+  .md strong{color:var(--txt)}
+  .md a{color:var(--accent)}
+  .prep-card{border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;background:var(--panel2)}
+  .prep-card h3.hd{margin:0 0 8px;font-size:15px}
+  .turn.host{background:transparent;border-style:dashed;color:var(--host)}
+  .turn.host .body{color:var(--host)}
+  .turn.mod{border-color:var(--mod);background:#241c0a}
+  .turn.mod .who{color:var(--mod)}
+  .turn.sys{border-style:dashed;color:var(--dim);font-size:12px}
+  .badge{display:inline-block;width:9px;height:9px;border-radius:50%}
+  .speaking{box-shadow:0 0 0 2px var(--accent2)}
+  .audioicon{font-size:12px;color:var(--accent2)}
+  /* human bar */
+  #humanbar{position:sticky;bottom:0;margin-top:auto;background:var(--panel);
+    border:1px solid var(--accent2);border-radius:var(--radius);padding:12px;display:none}
+  #humanbar.show{display:block;animation:fade .2s}
+  #humanbar .top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  #humanbar .top .nm{font-weight:700;color:var(--accent2)}
+  #micbtn{background:var(--con);color:#fff;border-color:var(--con)}
+  #micbtn.on{background:var(--accent2);color:#04210f;border-color:var(--accent2)}
+  .recording{animation:pulse 1s infinite}
+  .timer{font-variant-numeric:tabular-nums;font-weight:700;font-size:16px;
+    padding:2px 10px;border-radius:6px;background:var(--bg);border:1px solid var(--line);color:var(--accent2)}
+  .timer.warn{color:var(--mod);border-color:var(--mod)}
+  .timer.danger{color:#fff;background:var(--con);border-color:var(--con);animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+  .empty{color:var(--dim);text-align:center;margin-top:40px}
+  .small{font-size:11px;color:var(--dim)}
+  /* 赛制模块卡片 */
+  .session-board{display:grid;gap:10px}
+  .session-head{display:grid;grid-template-columns:1fr 42px 1fr;gap:10px;position:sticky;top:0;z-index:1}
+  .session-head .side-col{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--dim);font-weight:700}
+  .session-head .order-col{display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:11px}
+  .session-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:stretch}
+  .session-row.mirror{grid-template-columns:1fr 42px 1fr}
+  .session-row.free{grid-template-columns:1fr}
+  .session-slot{min-width:0;border:1px dashed color-mix(in srgb,var(--line) 76%,transparent);border-radius:var(--radius);padding:6px;background:rgba(13,17,23,.28)}
+  .session-slot:empty::before{content:"镜像席位待添加";display:block;color:var(--dim);font-size:12px;text-align:center;padding:34px 8px}
+  .session-swap{display:flex;align-items:center;justify-content:center}
+  .first-toggle{min-width:46px;height:30px;padding:0 11px;border-radius:999px;font-size:13px;font-weight:700;line-height:1;background:var(--bg);cursor:pointer;transition:filter .15s,box-shadow .15s}
+  .first-toggle:hover{filter:brightness(1.3)}
+  .first-toggle:disabled{opacity:.3;color:var(--dim)!important;border-color:var(--line)!important;box-shadow:none!important;cursor:default}
+  .mod{border:1px solid var(--line);border-radius:var(--radius);padding:8px 10px;background:var(--panel2);min-width:0}
+  .mod.dragover{border-color:var(--accent);border-style:dashed}
+  .mod.dragging{opacity:.5}
+  .mod .mhd{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .mod .grip{cursor:grab;color:var(--dim);font-size:15px;user-select:none}
+  .mod .mtype{font-weight:600;font-size:13px}
+  /* 环节颜色不再按类型，改由 JS 据持方内联着色（正蓝/反红/自由绿）。 */
+  .session-choice{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 8px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-weight:700;font-size:12px;color:var(--txt)}
+  .mod label{margin:5px 0 2px}
+  .mod .minutes{width:64px}
+  .chips{display:flex;flex-wrap:wrap;gap:5px;margin:3px 0}
+  .chip{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:2px 9px;font-size:12px;display:inline-flex;align-items:center;gap:5px}
+  .chip b{cursor:pointer;color:var(--con)}
+  .refadd{display:flex;gap:5px;align-items:center}
+  .refadd select,.refadd input{padding:4px 6px;font-size:12px}
+  .refadd .seatn{width:54px}
+  .fnbadge{display:inline-block;background:var(--bg);border:1px solid var(--accent);color:var(--accent);
+    border-radius:10px;padding:1px 8px;font-size:11px;margin:1px}
+  @media (max-width:1500px){
+    .wrap{grid-template-columns:1fr;height:auto;min-height:calc(100vh - 53px)}
+    .setup{border-right:0;border-bottom:1px solid var(--line)}
+    .stage{min-height:70vh}
+  }
+  @media (max-width:860px){
+    .setup-grid,.session-row,.session-row.mirror,.session-head{grid-template-columns:1fr}
+    .setup-section.wide{grid-column:auto}
+    .session-head{display:none}
+    .side-group .side-body{grid-template-columns:1fr}
+    .session-swap{padding:2px 0}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎙️ 实时辩论 · 真人 ⇄ AI</h1>
+  <span class="pill" id="statePill">空闲</span>
+</header>
+
+<div class="wrap">
+  <!-- ===================== 设置面板 ===================== -->
+  <section class="setup">
+    <div class="setup-grid">
+      <div class="setup-section">
+        <h2>① 辩题与规则</h2>
+        <div class="card">
+          <label>辩题</label>
+          <input id="topic" placeholder="例如：人工智能是否会让人类更自由" />
+          <div class="grid2">
+            <div><label style="color:var(--pro)">正方持方</label>
+              <input id="stance_pro" placeholder="留空=「正方」" oninput="renderDebaterGroups()"/></div>
+            <div><label style="color:var(--con)">反方持方</label>
+              <input id="stance_con" placeholder="留空=「反方」" oninput="renderDebaterGroups()"/></div>
+          </div>
+          <label>自定义规则（可选，会注入所有 AI 辩手）</label>
+          <textarea id="rules" placeholder="例如：禁止人身攻击；必须引用数据；每轮先回应对方再立论……"></textarea>
+          <div><label>语速 字/分（决定各模块时长↔字数换算）</label><input id="wpm" type="number" value="240" min="60" max="600"/></div>
+          <label class="toggle"><input type="checkbox" id="use_moderator"/> 启用 AI 主审（每环节点评，逼向深处）</label>
+          <div id="modcfg" class="grid2" style="display:none">
+            <div><label>主审模型（可输入筛选）</label><input id="moderator_model" list="modellist" oninput="onModModelInput(this)" placeholder="输入或选择模型"/></div>
+            <div><label>主审思考</label><select id="moderator_thinking"></select></div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="double_check"/> 简洁复核（AI 发言后自检压缩，更慢）</label>
+          <label class="toggle"><input type="checkbox" id="manual_advance" checked/> AI 逐句手动推进（每句点「下一句」才发言，不点不进）</label>
+          <label>语音引擎</label>
+          <select id="tts_engine">
+            <option value="browser">浏览器语音（最快·离线，默认）</option>
+            <option value="edge">edge-tts（在线·更高质量，后台合成）</option>
+          </select>
+          <label class="toggle"><input type="checkbox" id="stt_bias" checked onchange="applySttPhrases()"> 启用 STT 辩题关键词辅助</label>
+          <label>STT 关键词提供方（可插件扩展）</label>
+          <select id="stt_provider"></select>
+          <div class="row">
+            <button class="sm" type="button" onclick="extractSttKeywords()">用辩题提取关键词</button>
+            <div class="hint" id="sttStatus" style="flex:2">默认用 opencode/big-pickle 提取；浏览器支持时会注入识别器。</div>
+          </div>
+          <textarea id="stt_keywords" placeholder="可手动补充关键词，用逗号、顿号或换行分隔，例如：生成式AI、就业替代、算法偏见、数据隐私" style="min-height:56px" oninput="applySttPhrases()"></textarea>
+        </div>
+        <h2 style="margin-top:14px">赛制总览</h2>
+        <div class="card"><div id="formatOverview" class="overview"><div class="small">（添加赛制模块后这里显示流程总览）</div></div></div>
+      </div>
+
+      <div class="setup-section">
+        <h2>② 赛制（镜像环节并列）</h2>
+        <div class="row" style="margin-bottom:8px">
+          <button class="sm" onclick="addModule('statement')">+ 镜像申论/陈词</button>
+          <button class="sm" onclick="addModule('cross_exam')">+ 镜像质询</button>
+          <button class="sm" onclick="addModule('free_debate')">+ 自由辩论</button>
+        </div>
+        <div id="modules"></div>
+        <div class="hint" id="seatSummary"></div>
+      </div>
+
+      <div class="setup-section wide">
+        <h2>③ 辩手配置（按阵营分组）</h2>
+        <div id="debaters"></div>
+        <div class="row">
+          <button class="sm" onclick="addDebater('ai')">+ 额外 AI 辩手</button>
+          <button class="sm" onclick="addDebater('human')">+ 额外真人辩手</button>
+          <button class="sm" style="flex:0 0 auto" onclick="refreshModels()" title="从 opencode 重新拉取模型与各自思考强度">↻ 模型</button>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="btnCreate" onclick="doCreate()">建立辩论</button>
+          <button id="btnPrepare" onclick="doPrepare()" disabled>让 AI 备赛</button>
+          <button class="go" id="btnStart" onclick="doStart()" disabled>开始辩论</button>
+        </div>
+        <button id="btnStop" onclick="doStop()" disabled style="width:100%">停止本场</button>
+        <div class="hint">流程：建立辩论 → 让 AI 备赛（传统完整备赛，可选但推荐）→ 开始辩论。真人轮次会在右侧底部弹出发言条，可语音或打字。</div>
+      </div>
+
+      <div class="setup-section wide">
+        <h2 style="display:flex;align-items:center">④ 已保存的辩论
+          <button class="sm" style="margin-left:auto" onclick="loadLibrary()">↻ 刷新</button></h2>
+        <div id="library"><div class="small">（每次建立/备赛/结束会自动保存到本机）</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 舞台 ===================== -->
+  <section class="stage" id="stage">
+    <div id="statusbar">
+      <span id="phaseInfo">就绪</span>
+      <span id="progress" class="small"></span>
+      <span style="flex:1"></span>
+      <button id="advanceBtn" class="go sm recording" onclick="doAdvance()" style="display:none">▶ 下一句</button>
+      <button id="pauseBtn" class="sm" onclick="togglePause()" disabled>⏸ 暂停</button>
+      <button id="muteBtn" class="sm" onclick="toggleMute()">🔊 语音开</button>
+      <button id="exportBtn" class="sm" onclick="doExport()">⬇ 导出</button>
+    </div>
+    <div id="tabbar">
+      <button class="tab active" data-tab="live" onclick="showTab('live')">📡 实况</button>
+      <button class="tab" data-tab="prep" onclick="showTab('prep')">📚 备赛材料 <span id="prepDot" class="dot" style="display:none"></span></button>
+    </div>
+    <div id="liveTab" class="tabpane">
+    <div class="empty" id="emptyHint">设置左侧并「建立辩论」后，这里实时显示发言。</div>
+    <!-- 真人发言条 -->
+    <div id="humanbar">
+      <div class="top">
+        <span class="nm" id="humanName">你的发言</span>
+        <span class="small" id="humanLab"></span>
+        <span id="humanTimer" class="timer" style="margin-left:auto">--:--</span>
+        <button class="sm" id="micbtn" onclick="toggleMic()">🎤 麦克风：开</button>
+      </div>
+      <div class="small" id="humanOpp" style="margin-bottom:6px"></div>
+      <textarea id="humanText" placeholder="说话（麦克风）或在此打字……" style="min-height:70px"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="go" style="flex:2" onclick="submitHuman()">提交发言</button>
+        <button class="sm" style="flex:1" onclick="clearHuman()">清空</button>
+      </div>
+    </div>
+    </div><!-- /liveTab -->
+    <div id="prepTab" class="tabpane" style="display:none">
+      <div class="small" id="prepEmpty">点击左侧「让 AI 备赛」后，各阵营传统备赛生成的交接简报（Markdown）会显示在这里；同阵营 AI 共享同一套研究资料。</div>
+      <div id="prepList"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+let OPTIONS=null, evtSrc=null, micEnabled=true, recog=null, recognizing=false, recogBase='', sttPhraseSupported=null;
+const audioQueue=[]; let audioPlaying=false;
+
+// -------- 初始化下拉项 --------
+let MODEL_THINK={}, DEFAULT_MODEL='opencode/mimo-v2.5-free', GENERIC_THINK=['none','low','medium','high'];
+async function loadOptions(refresh){
+  OPTIONS = await (await fetch('/api/options'+(refresh?'?refresh=1':''))).json();
+  // 每个模型自带 thinking 列表 → 建「模型→思考强度」映射，供下拉按所选模型动态填充。
+  MODEL_THINK={}; (OPTIONS.models||[]).forEach(m=>{MODEL_THINK[m.value]=m.thinking||GENERIC_THINK;});
+  GENERIC_THINK=OPTIONS.thinking||GENERIC_THINK;
+  if(OPTIONS.models && OPTIONS.models.length){
+    DEFAULT_MODEL=(OPTIONS.models.find(m=>/mimo.*free/i.test(m.value))||OPTIONS.models[0]).value;
+  }
+  buildModelDatalist();
+  populateTtsEngines();
+  populateSttProviders();
+  // 主审：模型可输入下拉 + 思考随模型更新
+  const mm=document.getElementById('moderator_model');
+  mm.value=DEFAULT_MODEL; fillThink(document.getElementById('moderator_thinking'), DEFAULT_MODEL, 'medium');
+  if(!MODULES.length && !document.querySelectorAll('#debaters .dbtr').length){
+    MODULES=[
+      {type:'statement',minutes:2,function:'opening',side:'正方',seat:1,hint:''},
+      {type:'statement',minutes:2,function:'opening',side:'反方',seat:1,hint:''},
+      {type:'cross_exam',minutes:2,label:'质询',questioners:[['反方',1]],respondents:[['正方',1]],single_side:true},
+      {type:'cross_exam',minutes:2,label:'质询',questioners:[['正方',1]],respondents:[['反方',1]],single_side:true},
+      {type:'free_debate',minutes:4,label:'自由辩论'},
+      {type:'statement',minutes:2,function:'closing',side:'反方',seat:1,hint:''},
+      {type:'statement',minutes:2,function:'closing',side:'正方',seat:1,hint:''}
+    ];
+    renderModules(); syncSeats();
+  }
+}
+// 插件化 TTS 引擎 / STT 提供方下拉：从 /api/options 动态填充，自定义插件自动出现。
+function populateTtsEngines(){
+  const sel=document.getElementById('tts_engine');
+  const list=OPTIONS.tts_engines||[];
+  if(!sel||!list.length) return;            // 后端未提供 → 保留 HTML 内静态选项
+  const keep=sel.value;
+  // available===false 的引擎（如未装依赖/模型的 Piper）仍列出但标注「未就绪」。
+  sel.innerHTML=list.map(e=>{
+    const tag=(e.available===false)?'（未就绪·需安装）':'';
+    return `<option value="${e.id}">${esc(e.label)}${tag}</option>`;
+  }).join('');
+  const def=(list.find(e=>e.default)||list[0]).id;
+  sel.value=list.some(e=>e.id===keep)?keep:def;
+}
+function populateSttProviders(){
+  const sel=document.getElementById('stt_provider');
+  const list=OPTIONS.stt_providers||[];
+  if(!sel) return;
+  const keep=sel.value;
+  sel.innerHTML=(list.length?list:[{id:'opencode',label:'opencode/big-pickle（默认）',default:true}])
+    .map(p=>`<option value="${p.id}">${esc(p.label)}</option>`).join('');
+  const def=(list.find(p=>p.default)||list[0]||{id:'opencode'}).id;
+  sel.value=list.some(p=>p.id===keep)?keep:def;
+}
+function buildModelDatalist(){
+  let dl=document.getElementById('modellist');
+  if(!dl){ dl=document.createElement('datalist'); dl.id='modellist'; document.body.appendChild(dl); }
+  dl.innerHTML=(OPTIONS.models||[]).map(m=>`<option value="${m.value}">${esc(m.name)}</option>`).join('');
+}
+// 按所选模型把思考强度下拉填成「该模型自己支持的档位」
+function fillThink(sel, modelValue, current){
+  if(!sel) return;
+  const opts=MODEL_THINK[modelValue] || GENERIC_THINK;
+  const keep=current!=null?current:sel.value;
+  sel.innerHTML=opts.map(t=>`<option value="${t}">${t}</option>`).join('');
+  sel.value=opts.includes(keep)?keep:(opts.includes('medium')?'medium':opts[0]);
+}
+function onModelInput(inp){
+  const card=inp.closest('.dbtr');
+  if(card) fillThink(card.querySelector('.d-thinking'), inp.value);
+}
+function onModModelInput(inp){ fillThink(document.getElementById('moderator_thinking'), inp.value); }
+async function refreshModels(){ await loadOptions(true);
+  // 重填所有已存在卡片的思考强度（按各自模型）
+  document.querySelectorAll('#debaters .dbtr').forEach(c=>fillThink(c.querySelector('.d-thinking'), c.querySelector('.d-model').value));
+  systemLine('已刷新模型列表（共 '+ (OPTIONS.models||[]).length +' 个）');
+}
+function optionsHtml(items){return items.map(it=>`<option value="${it.value}">${it.name}</option>`).join('')}
+
+// -------- STT 关键词辅助 --------
+function parseSttKeywords(){
+  const raw=document.getElementById('stt_keywords')?.value || '';
+  const seen=new Set(), out=[];
+  raw.split(/[\n,，、;；]+/).map(s=>s.trim()).filter(Boolean).forEach(w=>{
+    if(!seen.has(w) && w.length<=24){ seen.add(w); out.push(w); }
+  });
+  return out.slice(0,80);
+}
+function setSttStatus(text){ const el=document.getElementById('sttStatus'); if(el) el.textContent=text; }
+function setSttKeywords(words, source){
+  const clean=[]; const seen=new Set();
+  (words||[]).forEach(w=>{
+    w=String(w||'').trim();
+    if(w && w.length<=24 && !seen.has(w)){ seen.add(w); clean.push(w); }
+  });
+  document.getElementById('stt_keywords').value=clean.join('、');
+  setSttStatus(clean.length?`已载入 ${clean.length} 个关键词（${source||'手动'}）`:'未生成关键词');
+  applySttPhrases();
+}
+function sttKeywordPayload(){
+  return {
+    topic:document.getElementById('topic').value,
+    rules:document.getElementById('rules').value,
+    stt_provider:(document.getElementById('stt_provider')||{}).value||'',
+    debaters:collectDebaters()
+  };
+}
+async function extractSttKeywords(silent){
+  const topic=document.getElementById('topic').value.trim();
+  if(!topic){ if(!silent) alert('请先填写辩题'); return false; }
+  if(!silent) setSttStatus('正在用 opencode/big-pickle 提取关键词…');
+  try{
+    const res=await postWithTimeout('/api/stt_keywords',sttKeywordPayload(),45000);
+    if(res.error){ throw new Error(res.error); }
+    setSttKeywords(res.keywords||[], res.source||'opencode/big-pickle');
+    return true;
+  }catch(e){
+    setSttStatus('关键词提取失败，可手动填写：'+e.message);
+    return false;
+  }
+}
+async function ensureSttKeywords(){
+  if(!document.getElementById('stt_bias').checked) return;
+  if(parseSttKeywords().length) return;
+  setSttStatus('正在自动提取 STT 关键词…');
+  await extractSttKeywords(true);
+}
+function applySttPhrases(target){
+  const r=target || recog;
+  if(!r) return;
+  const on=document.getElementById('stt_bias')?.checked;
+  const words=on?parseSttKeywords():[];
+  if(!words.length) return;
+  const P=window.SpeechRecognitionPhrase;
+  const phrases=words.map(phrase=>P?new P(phrase,10):{phrase, boost:10});
+  try{
+    if('phrases' in r){
+      r.phrases=phrases;
+      sttPhraseSupported=true;
+      setSttStatus(`已向识别器注入 ${words.length} 个关键词`);
+    }else{
+      sttPhraseSupported=false;
+      setSttStatus(`浏览器暂不支持 STT 关键词偏置；已保留 ${words.length} 个关键词`);
+    }
+  }catch(e){
+    sttPhraseSupported=false;
+    setSttStatus(`浏览器未接受关键词偏置；已保留 ${words.length} 个关键词`);
+  }
+}
+
+// ===================== 赛制模块（拖拽组合）=====================
+let MODULES=[];
+const SIDES=['正方','反方'];
+const NUM={1:'一',2:'二',3:'三',4:'四',5:'五',6:'六',7:'七',8:'八'};
+function seatName(side,seat){ return side+(NUM[seat]||seat)+'辩'; }
+function shortSide(side){ return (side||'阵营').replace(/方$/,''); }
+function seatShort(side,seat){ return `${shortSide(side)}${seat||1}`; }
+function sideOpts(sel){ return SIDES.map(s=>`<option ${s===sel?'selected':''}>${s}</option>`).join(''); }
+function otherSide(side){ return SIDES.find(s=>s!==side) || SIDES[0]; }
+
+const FUNC_OPTS=[['opening','开篇申论'],['continuation','延续申论'],['cross_summary','质询小结'],['closing','总结陈词']];
+function funcOpts(sel){ return FUNC_OPTS.map(([v,n])=>`<option value="${v}" ${v===sel?'selected':''}>${n}</option>`).join(''); }
+function statementModule(side, fn){
+  return {type:'statement',minutes:2,function:fn||'opening',side,seat:1,hint:''};
+}
+function crossExamModule(side){
+  return {type:'cross_exam',minutes:2,label:'质询',questioners:[[side,1]],respondents:[[otherSide(side),1]],single_side:true};
+}
+function defaultModules(type){
+  if(type==='statement') return [statementModule('正方'), statementModule('反方')];
+  if(type==='cross_exam') return [crossExamModule('反方'), crossExamModule('正方')];
+  return [{type:'free_debate',minutes:4,label:'自由辩论'}];
+}
+function defaultModule(type){
+  if(type==='statement') return statementModule('正方');
+  if(type==='cross_exam') return crossExamModule('反方');
+  return {type:'free_debate',minutes:4,label:'自由辩论'};
+}
+function addModule(type){ MODULES.push(...defaultModules(type)); renderModules(); syncSeats(); }
+function removeModule(i){ MODULES.splice(i,1); renderModules(); syncSeats(); }
+function modField(i,key,val){
+  if(key==='minutes') val=parseFloat(val)||1;
+  if(key==='seat') val=parseInt(val)||1;
+  MODULES[i][key]=val;
+  renderModules(); syncSeats();
+}
+function addRefFromBtn(btn,i,key){
+  const w=btn.closest('.refadd');
+  const side=w.querySelector('.refside').value, seat=parseInt(w.querySelector('.refseat').value)||1;
+  // 同一环节内不得重复选同一辩手（质询/被质询两栏合并去重）。
+  const taken=[...(MODULES[i].questioners||[]),...(MODULES[i].respondents||[])];
+  if(taken.some(r=>r[0]===side && +r[1]===seat)){ alert(`${seatShort(side,seat)} 已在本环节中，不能重复添加`); return; }
+  MODULES[i][key]=MODULES[i][key]||[]; MODULES[i][key].push([side,seat]);
+  renderModules(); syncSeats();
+}
+function removeRef(i,key,j){ MODULES[i][key].splice(j,1); renderModules(); syncSeats(); }
+
+function refChips(refs,i,key){
+  return (refs||[]).map((r,j)=>`<span class="chip">${esc(seatShort(r[0],r[1]))} <b onclick="removeRef(${i},'${key}',${j})">✕</b></span>`).join('') || '<span class="small">（未指定）</span>';
+}
+// 质询方向：质询方为一侧，被质询方恒为对方——杜绝选到本方或自己。
+function crossQSide(m){
+  if(m.questioners&&m.questioners.length) return m.questioners[0][0]||SIDES[0];
+  if(m.respondents&&m.respondents.length) return otherSide(m.respondents[0][0]);
+  return SIDES[0];
+}
+function refAdder(i,key,fixedSide){
+  // fixedSide 给定时锁死阵营（质询用），仅可选座位号；否则保留阵营下拉。
+  const sideCtrl = fixedSide
+    ? `<input type="hidden" class="refside" value="${attrEsc(fixedSide)}"><span class="small" style="color:${sideColor(fixedSide)}">${esc(fixedSide)}</span>`
+    : `<select class="refside">${sideOpts('正方')}</select>`;
+  return `${sideCtrl}
+    <input class="seatn refseat" type="number" min="1" value="1">号
+    <button class="sm" onclick="addRefFromBtn(this,${i},'${key}')">+加入</button>`;
+}
+function refsLabel(refs){
+  return (refs||[]).map(r=>esc(seatShort(r[0],r[1]))).join('、') || '未指定';
+}
+function attrEsc(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function primarySide(m){
+  if(m.type==='statement') return m.side || SIDES[0];
+  if(m.type==='cross_exam' && m.questioners && m.questioners.length) return m.questioners[0][0] || SIDES[0];
+  return SIDES[0];
+}
+function isMirrorPair(a,b){
+  if(!a||!b||a.type==='free_debate'||b.type==='free_debate'||a.type!==b.type) return false;
+  if(primarySide(a)===primarySide(b)) return false;
+  if(a.type==='statement') return (a.function||'opening')===(b.function||'opening');
+  return true;
+}
+function moduleRows(){
+  const rows=[];
+  for(let i=0;i<MODULES.length;i++){
+    const m=MODULES[i];
+    if(m.type==='free_debate'){ rows.push({free:true,items:[i]}); continue; }
+    if(i+1<MODULES.length && isMirrorPair(m,MODULES[i+1])){
+      rows.push({free:false,items:[i,i+1]}); i++; continue;
+    }
+    rows.push({free:false,items:[i]});
+  }
+  return rows;
+}
+function moduleOrderLabel(m){
+  if(m.type==='statement') return seatShort(m.side||'阵营',m.seat||1);
+  if(m.type==='cross_exam') return `${refsLabel(m.questioners)}质询`;
+  return '全体';
+}
+function rowOrderText(items){
+  return items.map((i,idx)=>`${idx+1}. ${moduleOrderLabel(MODULES[i])}`).join(' → ');
+}
+function rowSwapControl(row){
+  if(row.items.length!==2){
+    return '<div class="session-swap"><button class="first-toggle" disabled title="补齐镜像环节后可切换先发方">—</button></div>';
+  }
+  const [a,b]=row.items;
+  const firstSide=primarySide(MODULES[a]);          // MODULES 顺序里靠前者先发
+  const col=sideColor(firstSide);
+  const label=shortSide(firstSide)+'先';            // 正先 / 反先
+  return `<div class="session-swap"><button class="first-toggle" data-swap="${a}-${b}"
+    style="color:${col};border-color:${col};box-shadow:0 0 9px ${col}66, inset 0 0 7px ${col}33"
+    onclick="swapMirrorOrder(${a},${b})"
+    title="${attrEsc(firstSide)}先发 · 点击切换先发方">${esc(label)}</button></div>`;
+}
+// 环节颜色按【持方】而非环节类型：正方蓝、反方红、自由辩论绿（中立）。
+function moduleColor(m){
+  return m.type==='free_debate' ? 'var(--accent2)' : sideColor(primarySide(m));
+}
+function moduleChoiceStyle(m){
+  const col=moduleColor(m);
+  return `style="border-color:${col};background:color-mix(in srgb,${col} 14%,var(--bg))"`;
+}
+function moduleChoice(m,order){
+  const sc=moduleChoiceStyle(m);
+  if(m.type==='statement'){
+    return `<div class="session-choice" ${sc}><span>当前辩手</span><span>${esc(seatShort(m.side||'阵营',m.seat||1))}</span><span>·</span><span>${FN_NAME[m.function||'opening']||'申论'}</span></div>`;
+  }
+  if(m.type==='cross_exam'){
+    return `<div class="session-choice cross" ${sc}><span>质询流向</span><span>${refsLabel(m.questioners)}</span><span>→</span><span>${refsLabel(m.respondents)}</span></div>`;
+  }
+  const ftxt=(Array.isArray(m.participants)&&m.participants.length)
+    ? m.participants.map(r=>seatShort(r[0],r[1])).join('、')+' · 阵营严格交替'
+    : '阵营严格交替';
+  return `<div class="session-choice free" ${sc}><span>自由辩论</span><span>${esc(ftxt)}</span></div>`;
+}
+// 自由辩论：当前辩手 → 可勾选参加者（默认全体；每方至少一人，两边人数可不等）
+function currentSeats(){
+  return [...document.querySelectorAll('#debaters .dbtr')].map(c=>({
+    side:debaterSide(c), seat:debaterSeat(c),
+    name:((c.querySelector('.d-name')||{}).value||'').trim()||seatShort(debaterSide(c),debaterSeat(c))
+  }));
+}
+// 某 (阵营,座位) 对应辩手是真人还是 AI（找不到则按 AI 处理）。
+function seatKind(side,seat){
+  const c=[...document.querySelectorAll('#debaters .dbtr')]
+    .find(c=>debaterSide(c)===side && debaterSeat(c)===+seat);
+  return c ? (c.dataset.kind||'ai') : 'ai';
+}
+function freeHas(sel,side,seat){ return sel.some(r=>r[0]===side && +r[1]===+seat); }
+function freeSelected(m){
+  const seats=currentSeats();
+  if(!Array.isArray(m.participants)) return seats.map(s=>[s.side,s.seat]);   // 缺省 → 全体
+  return m.participants.map(r=>[r[0],+r[1]]).filter(r=>seats.some(s=>s.side===r[0]&&s.seat===+r[1]));
+}
+function freeParticipantsUI(m,i){
+  const seats=currentSeats();
+  if(!seats.length) return `<div class="small">（先在右侧添加辩手，再勾选参加自由辩论的辩手）</div>`;
+  const sel=freeSelected(m);
+  const bySide={}; seats.forEach(s=>{(bySide[s.side]=bySide[s.side]||[]).push(s)});
+  return Object.entries(bySide).map(([side,arr])=>{
+    const boxes=arr.sort((a,b)=>a.seat-b.seat).map(s=>{
+      const on=freeHas(sel,s.side,s.seat);
+      return `<label class="toggle" style="display:inline-flex;margin:0 10px 0 0">
+        <input type="checkbox" ${on?'checked':''} onchange="toggleFreeParticipant(${i},'${attrEsc(s.side)}',${s.seat},this.checked)"> ${esc(s.name)}</label>`;
+    }).join('');
+    return `<div style="margin-top:4px"><span class="small" style="color:${sideColor(side)}">${esc(side)}</span> ${boxes}</div>`;
+  }).join('');
+}
+function toggleFreeParticipant(i,side,seat,checked){
+  const m=MODULES[i]; const seats=currentSeats();
+  let sel=freeSelected(m);
+  if(checked){ if(!freeHas(sel,side,seat)) sel.push([side,+seat]); }
+  else{
+    const after=sel.filter(r=>!(r[0]===side&&+r[1]===+seat));
+    if(after.some(r=>r[0]===side)) sel=after;        // 该方仍有人 → 允许
+    else { renderModules(); return; }                // 每方至少一人：拒绝取消最后一人
+  }
+  const allKeys=seats.map(s=>s.side+'#'+s.seat).sort();
+  const selKeys=sel.map(r=>r[0]+'#'+r[1]).sort();
+  if(allKeys.length && allKeys.join(',')===selKeys.join(',')) delete m.participants;  // 全选 → 缺省
+  else m.participants=sel.map(r=>[r[0],+r[1]]);
+  renderModules(); syncSeats();
+}
+function moduleCard(m,i,order){
+  const head=`<div class="mhd"><span class="grip" draggable="true" data-i="${i}">≡</span>
+    <span class="mtype ${m.type}" style="color:${moduleColor(m)}">${m.type==='statement'?'📃 申论/陈词':m.type==='cross_exam'?'⚔️ 质询':'💬 自由辩论'}</span>
+    <input class="minutes" type="number" min="0.2" step="0.1" value="${m.minutes}" onchange="modField(${i},'minutes',this.value)" title="时长(分钟)"> 分
+    <button class="sm" style="margin-left:auto" onclick="removeModule(${i})">✕</button></div>`;
+  if(m.type==='statement'){
+    // 真人席无需额外内容提示（提示只对 AI 生成有意义）。
+    const isHumanSeat = seatKind(m.side||SIDES[0], m.seat||1)==='human';
+    const hintBlock = isHumanSeat ? '' :
+      `<label>额外提示(可选)</label>
+      <input value="${esc(m.hint||'')}" placeholder="可选：给该辩手的额外内容指引" onchange="modField(${i},'hint',this.value)">`;
+    return head+moduleChoice(m,order)+`<label>功能（决定该辩手的发言职责与系统提示）</label>
+      <select onchange="modField(${i},'function',this.value)">${funcOpts(m.function||'opening')}</select>
+      <div class="refadd" style="margin-top:5px"><span class="small">辩手：</span>
+        <select onchange="modField(${i},'side',this.value)">${sideOpts(m.side)}</select>
+        <input class="seatn" type="number" min="1" value="${m.seat||1}" onchange="modField(${i},'seat',this.value)">号</div>
+      ${hintBlock}`;
+  }
+  if(m.type==='cross_exam'){
+    const qSide=crossQSide(m), rSide=otherSide(qSide);
+    return head+moduleChoice(m,order)+`<label>名称</label><input value="${esc(m.label)}" placeholder="质询" onchange="modField(${i},'label',this.value)">
+      <label>质询方（${esc(qSide)}，可多位）</label><div class="chips">${refChips(m.questioners,i,'questioners')}</div>
+      <div class="refadd">${refAdder(i,'questioners',qSide)}</div>
+      <label>被质询方（${esc(rSide)}，可多位）</label><div class="chips">${refChips(m.respondents,i,'respondents')}</div>
+      <div class="refadd">${refAdder(i,'respondents',rSide)}</div>
+      <label class="toggle"><input type="checkbox" ${m.single_side?'checked':''} onchange="modField(${i},'single_side',this.checked)"> 单边计时（仅质询方计时，默认）</label>`;
+  }
+  return head+moduleChoice(m,order)+`<label>名称</label><input value="${esc(m.label)}" placeholder="自由辩论" onchange="modField(${i},'label',this.value)">
+    <label>参加辩手（默认全体勾选；每方至少一人，两边人数可不等）</label>
+    ${freeParticipantsUI(m,i)}
+    <div class="small">按阵营严格交替发言；只有勾选的辩手参与本环节。</div>`;
+}
+// 赛制总览：按 MODULES 顺序列出每环节的「时长 + 简述」，顶部给出总时长。
+function fmtMin(v){ const n=Math.round((+v||0)*10)/10; return (Number.isInteger(n)?n:n.toFixed(1))+'min'; }
+function moduleSummaryLine(m){
+  if(m.type==='statement') return `${seatShort(m.side||'阵营',m.seat||1)}${FN_NAME[m.function||'opening']||'申论'}`;
+  if(m.type==='cross_exam') return `${refsLabel(m.questioners)}质询${refsLabel(m.respondents)}`;
+  const who=(Array.isArray(m.participants)&&m.participants.length)
+    ? m.participants.map(r=>seatShort(r[0],r[1])).join('、') : '全体';
+  return `自由辩论（${who}）`;
+}
+function renderOverview(){
+  const box=document.getElementById('formatOverview'); if(!box) return;
+  if(!MODULES.length){ box.innerHTML='<div class="small">（添加赛制模块后这里显示流程总览）</div>'; return; }
+  const total=MODULES.reduce((s,m)=>s+(+m.minutes||0),0);
+  const lines=MODULES.map(m=>`<div class="ov-line" style="border-left-color:${moduleColor(m)}">`
+    +`<span class="ov-min">${esc(fmtMin(m.minutes))}</span><span>${esc(moduleSummaryLine(m))}</span></div>`).join('');
+  box.innerHTML=`<div class="ov-total">总时长 ${esc(fmtMin(total))} · ${MODULES.length} 环节</div>${lines}`;
+}
+function renderModules(){
+  renderOverview();
+  const box=document.getElementById('modules');
+  if(!MODULES.length){ box.innerHTML='<div class="small">点击上方按钮添加赛制模块。</div>'; return; }
+  const head=`<div class="session-head"><div class="side-col" style="border-color:${sideColor(SIDES[0])}">${esc(SIDES[0])}镜像席</div><div class="order-col">顺序</div><div class="side-col" style="border-color:${sideColor(SIDES[1])}">${esc(SIDES[1])}镜像席</div></div>`;
+  const rows=moduleRows().map(row=>{
+    if(row.free){
+      return `<div class="session-row free"><div class="session-slot">${row.items.map(i=>`<div class="mod" data-i="${i}">${moduleCard(MODULES[i],i)}</div>`).join('')}</div></div>`;
+    }
+    const slots=SIDES.map(side=>{
+      const cards=row.items.filter(i=>primarySide(MODULES[i])===side)
+        .map(i=>`<div class="mod" data-i="${i}">${moduleCard(MODULES[i],i,row.items.indexOf(i)+1)}</div>`).join('');
+      return `<div class="session-slot" data-side="${esc(side)}">${cards}</div>`;
+    });
+    return `<div class="session-row mirror">${slots[0]}${rowSwapControl(row)}${slots[1]}</div>`;
+  }).join('');
+  box.innerHTML=`<div class="session-board">${head}${rows}</div>`;
+  // 拖拽排序（抓手触发）
+  box.querySelectorAll('.mod').forEach(el=>{
+    el.addEventListener('dragstart',e=>{ dragIdx=+el.dataset.i; el.classList.add('dragging'); });
+    el.addEventListener('dragend',e=>{ el.classList.remove('dragging'); box.querySelectorAll('.mod').forEach(x=>x.classList.remove('dragover')); });
+    el.addEventListener('dragover',e=>{ e.preventDefault(); el.classList.add('dragover'); });
+    el.addEventListener('dragleave',e=>{ el.classList.remove('dragover'); });
+    el.addEventListener('drop',e=>{ e.preventDefault(); const to=+el.dataset.i; moveModule(dragIdx,to); });
+  });
+}
+let dragIdx=-1;
+function moveModule(from,to){
+  if(from<0||from===to||from>=MODULES.length) return;
+  const [m]=MODULES.splice(from,1); MODULES.splice(to,0,m); renderModules(); syncSeats();
+}
+function swapMirrorOrder(a,b){
+  if(a<0||b<0||a>=MODULES.length||b>=MODULES.length) return;
+  const tmp=MODULES[a]; MODULES[a]=MODULES[b]; MODULES[b]=tmp;
+  renderModules(); syncSeats();
+}
+function collectModules(){ return MODULES; }
+
+// 据模块引用的 (阵营,座位) 自动确保对应辩手卡片存在
+function ensureSeat(side,seat){
+  const exists=[...document.querySelectorAll('#debaters .dbtr')].some(c=>
+    (c.querySelector('.d-side')||{}).value===side && (+(c.querySelector('.d-seat')||{}).value)===seat);
+  if(!exists) addDebater('ai', side, {side, seat, name:seatName(side,seat)});
+}
+function syncSeats(){
+  _seatSyncing=true;
+  try{
+  const seats=new Map();
+  for(const m of MODULES){
+    if(m.type==='statement' && m.side && m.seat) seats.set(m.side+'#'+m.seat,{side:m.side,seat:+m.seat});
+    if(m.type==='cross_exam') (m.questioners||[]).concat(m.respondents||[]).forEach(r=>seats.set(r[0]+'#'+r[1],{side:r[0],seat:+r[1]}));
+  }
+  [...seats.values()].sort((a,b)=>a.side.localeCompare(b.side)||a.seat-b.seat).forEach(s=>ensureSeat(s.side,s.seat));
+  const bySide={}; seats.forEach(v=>{(bySide[v.side]=bySide[v.side]||[]).push(v.seat)});
+  const sum=Object.entries(bySide).map(([s,ns])=>[...new Set(ns)].sort((a,b)=>a-b).map(n=>seatShort(s,n)).join('、')).join('  ·  ');
+  document.getElementById('seatSummary').textContent = seats.size? ('🧩 赛制推导辩手：'+sum+'（已自动生成卡片，下方显示各自将加载的功能）') : '（添加申论/质询模块后，按其引用的座位自动生成辩手）';
+  renderDebaterFuncs();
+  } finally { _seatSyncing=false; }
+  renderModules();   // 座位/真人身份变动后刷新模块卡（自由辩论勾选框、真人席隐藏额外提示等）
+}
+// 座位同步期间抑制模块重渲染，循环结束后统一渲染一次；renderModules 不调用 syncSeats，无递归。
+let _seatSyncing=false;
+// 据赛制推导每位辩手将加载的功能性 prompt，并显示在其卡片上（与引擎逻辑一致）
+const FN_NAME={opening:'开篇申论',continuation:'延续申论',cross_summary:'质询小结',closing:'总结陈词',question:'质询',answer:'接质',free:'自由辩论'};
+function deriveFunctions(){
+  const map={}; const add=(k,fn)=>{ (map[k]=map[k]||[]); if(!map[k].includes(fn)) map[k].push(fn); };
+  for(const m of MODULES){
+    if(m.type==='statement' && m.side && m.seat) add(m.side+'#'+m.seat, m.function||'opening');
+    else if(m.type==='cross_exam'){ (m.questioners||[]).forEach(r=>add(r[0]+'#'+r[1],'question')); (m.respondents||[]).forEach(r=>add(r[0]+'#'+r[1],'answer')); }
+  }
+  return map;
+}
+function renderDebaterFuncs(){
+  const map=deriveFunctions();
+  const hasFree=MODULES.some(m=>m.type==='free_debate');
+  document.querySelectorAll('#debaters .dbtr').forEach(c=>{
+    const k=(c.querySelector('.d-side')||{}).value+'#'+(c.querySelector('.d-seat')||{}).value;
+    const fns=(map[k]||[]).slice(); if(hasFree) fns.push('free');
+    const el=c.querySelector('.d-funcs'); if(!el) return;
+    el.innerHTML = fns.length
+      ? '🎓 功能：'+fns.map(f=>`<span class="fnbadge">${FN_NAME[f]||f}</span>`).join(' ')
+      : '<span style="color:var(--dim)">（未被赛制引用；仅自由辩论或未参与）</span>';
+  });
+  updateDebaterSeatlines();
+}
+
+// -------- 辩手卡片 --------
+let dseq=0;
+function debaterSide(card){ return (card.querySelector('.d-side')||{}).value || '未分组'; }
+function debaterSeat(card){ return +(card.querySelector('.d-seat')||{}).value || 1; }
+function sideOrder(side){
+  const i=SIDES.indexOf(side);
+  return i>=0 ? i : SIDES.length;
+}
+function updateDebaterSeatlines(){
+  document.querySelectorAll('#debaters .dbtr').forEach(card=>{
+    const side=debaterSide(card), seat=debaterSeat(card);
+    const line=card.querySelector('.d-seatline');
+    if(line){
+      line.textContent=seatShort(side,seat);
+      line.style.borderColor=sideColor(side);
+      line.style.color=sideColor(side);
+    }
+  });
+}
+function renderDebaterGroups(){
+  const box=document.getElementById('debaters');
+  const cards=[...box.querySelectorAll('.dbtr')];
+  if(!cards.length){ box.innerHTML=''; return; }
+  cards.sort((a,b)=>{
+    const sa=debaterSide(a), sb=debaterSide(b);
+    const od=sideOrder(sa)-sideOrder(sb);
+    const sd=sa===sb ? 0 : sa.localeCompare(sb,'zh-Hans-CN');
+    return od || sd || debaterSeat(a)-debaterSeat(b) || a.id.localeCompare(b.id);
+  });
+  const groups=new Map();
+  cards.forEach(card=>{
+    const side=debaterSide(card);
+    if(!groups.has(side)) groups.set(side,[]);
+    groups.get(side).push(card);
+  });
+  box.innerHTML='';
+  groups.forEach((items,side)=>{
+    const group=document.createElement('div');
+    group.className='side-group';
+    group.style.borderColor=sideColor(side);
+    const stance=stanceForSide(side);
+    group.innerHTML=`<div class="side-title" style="border-bottom-color:${sideColor(side)}">
+      <strong style="color:${sideColor(side)}">${esc(side)}</strong>
+      <span class="small" style="flex:1;color:var(--dim)">${stance?'持方：'+esc(stance):'（持方见辩题下方）'}</span>
+      <span class="count">${items.length} 位辩手</span>
+    </div><div class="side-body"></div>`;
+    const body=group.querySelector('.side-body');
+    items.forEach(card=>body.appendChild(card));
+    box.appendChild(group);
+  });
+  updateDebaterSeatlines();
+}
+function debaterChanged(){
+  renderDebaterGroups();
+  renderDebaterFuncs();
+  if(!_seatSyncing) renderModules();   // 用户改动辩手（含真人/AI 身份）→ 刷新模块卡
+}
+function removeDebaterCard(btn){
+  const card=btn.closest('.dbtr');
+  if(card) card.remove();
+  debaterChanged();
+}
+function addDebater(kind, side, data){
+  if(!OPTIONS) return;
+  data = data || {};
+  if(data.kind) kind = data.kind;
+  const id='db'+(dseq++);
+  const isHuman = kind==='human';
+  const sideVal = data.side || side || (document.querySelectorAll('#debaters .dbtr').length%2? '反方':'正方');
+  const voices=optionsHtml(OPTIONS.voices);
+  const div=document.createElement('div');
+  div.className='dbtr'; div.id=id; div.dataset.kind=kind;
+  div.innerHTML=`
+    <div class="hd">
+      <span class="tag">${isHuman?'🧑 真人':'🤖 AI'}</span>
+      <span class="seatline d-seatline"></span>
+      <input class="d-name" placeholder="名字" value="${isHuman?'我':'AI辩手'}" style="flex:1"/>
+      <button class="sm" onclick="removeDebaterCard(this)">✕</button>
+    </div>
+    <div class="grid2">
+      <div><label>阵营</label><input class="d-side" value="${sideVal}" onchange="debaterChanged()"/></div>
+      <div><label>座位号</label><input class="d-seat" type="number" min="1" value="${data.seat||1}" onchange="debaterChanged()"/></div>
+    </div>
+    <input class="d-stance" type="hidden"/>
+    <div class="d-funcs small" style="margin-top:4px"></div>
+    <div class="ai-only" style="${isHuman?'display:none':''}">
+      <div class="grid2">
+        <div><label>模型（可输入筛选）</label><input class="d-model" list="modellist" oninput="onModelInput(this)" placeholder="输入或选择模型"/></div>
+        <div><label>思考强度</label><select class="d-thinking"></select></div>
+      </div>
+      <label>语音（免费 edge-tts）</label><select class="d-voice">${voices}</select>
+      <details class="adv"><summary>高级：人设 / 直接粘贴 system prompt</summary>
+        <label>人设/口吻(可选)</label><input class="d-persona" placeholder="例如：以鲁迅的口吻"/>
+        <label>直接给定 system prompt(可选，覆盖自动生成)</label>
+        <textarea class="d-custom" placeholder="留空则根据辩题/规则自动生成"></textarea>
+      </details>
+    </div>`;
+  document.getElementById('debaters').appendChild(div);
+  // 应用预设值（默认或从库载入时）
+  const set=(sel,val)=>{const e=div.querySelector(sel); if(e!=null&&val!=null&&val!=='') e.value=val;};
+  if(data.name) div.querySelector('.d-name').value=data.name;
+  set('.d-stance',data.stance); set('.d-voice',data.voice);
+  set('.d-persona',data.persona); set('.d-custom',data.custom_prompt);
+  // 模型：默认或预设 → 据该模型填充其支持的思考强度档位
+  const mEl=div.querySelector('.d-model');
+  if(mEl){ mEl.value=(data.model||DEFAULT_MODEL); fillThink(div.querySelector('.d-thinking'), mEl.value, data.thinking); }
+  debaterChanged();
+}
+// 持方立场现统一放辩题下方（正方/反方各一），按辩手阵营取用。
+function stanceForSide(side){
+  if(side===SIDES[0]) return (document.getElementById('stance_pro')||{}).value.trim();
+  if(side===SIDES[1]) return (document.getElementById('stance_con')||{}).value.trim();
+  return '';
+}
+function collectDebaters(){
+  return [...document.querySelectorAll('#debaters .dbtr')].map(d=>{
+    const g=s=>{const e=d.querySelector(s);return e?e.value:''};
+    return {
+      name:g('.d-name'), side:g('.d-side'), kind:d.dataset.kind, seat:+g('.d-seat')||1,
+      stance:stanceForSide(g('.d-side')), model:g('.d-model'), thinking:g('.d-thinking'),
+      voice:g('.d-voice'), persona:g('.d-persona'), custom_prompt:g('.d-custom')
+    };
+  });
+}
+
+// -------- 配置 toggle --------
+document.getElementById('use_moderator').addEventListener('change',e=>{
+  document.getElementById('modcfg').style.display=e.target.checked?'grid':'none';
+});
+
+// -------- 建立 / 备赛 / 开始 / 停止 --------
+function buildConfig(){
+  const num=id=>parseFloat(document.getElementById(id).value);
+  return {
+    topic:document.getElementById('topic').value,
+    rules:document.getElementById('rules').value,
+    wpm:num('wpm'),
+    use_moderator:document.getElementById('use_moderator').checked,
+    moderator_model:document.getElementById('moderator_model').value,
+    moderator_thinking:document.getElementById('moderator_thinking').value,
+    double_check:document.getElementById('double_check').checked,
+    manual_advance:document.getElementById('manual_advance').checked,
+    tts_engine:document.getElementById('tts_engine').value,
+    stt_keywords:parseSttKeywords(),
+    stt_provider:(document.getElementById('stt_provider')||{}).value||'',
+    modules:collectModules(),
+    debaters:collectDebaters()
+  };
+}
+async function post(url,body){
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body||{})});
+  return r.json();
+}
+async function postWithTimeout(url,body,timeoutMs){
+  const ctl=new AbortController();
+  const t=setTimeout(()=>ctl.abort(),timeoutMs||30000);
+  try{
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body||{}), signal:ctl.signal});
+    return r.json();
+  }finally{
+    clearTimeout(t);
+  }
+}
+async function doCreate(){
+  await ensureSttKeywords();
+  const cfg=buildConfig();
+  if(!cfg.debaters.length){alert('请至少添加一名辩手');return;}
+  const res=await post('/api/create',cfg);
+  if(res.error){alert('建立失败：'+res.error);return;}
+  afterCreated(cfg.topic);
+  connectSSE();
+  systemLine('已建立辩论：'+cfg.topic);
+  setTimeout(loadLibrary, 400);
+}
+function afterCreated(topic){
+  document.getElementById('emptyHint').style.display='none';
+  document.getElementById('btnPrepare').disabled=false;
+  document.getElementById('btnStart').disabled=false;
+  document.getElementById('btnStop').disabled=false;
+}
+async function doPrepare(){ await post('/api/prepare'); }
+async function doStart(){
+  // 用户手势 → 解锁音频自动播放
+  unlockAudio();
+  await post('/api/start');
+}
+async function doStop(){ await post('/api/stop'); }
+
+// -------- SSE --------
+let lastSeq=-1;
+function connectSSE(){
+  if(evtSrc) evtSrc.close();
+  lastSeq=-1;                       // 新一场 → 重置去重游标
+  for(const k in turnCards) delete turnCards[k];
+  document.getElementById('prepList').innerHTML='';
+  document.getElementById('prepEmpty').style.display='';
+  document.getElementById('prepDot').style.display='none';
+  showTab('live');
+  evtSrc=new EventSource('/events');
+  evtSrc.onmessage=ev=>{
+    try{
+      const e=JSON.parse(ev.data);
+      // 断线重连去重：忽略已渲染过的事件（服务端也据 Last-Event-ID 只补未读，双保险）
+      if(e.seq!=null){ if(e.seq<=lastSeq) return; lastSeq=e.seq; }
+      handleEvent(e);
+    }catch(err){ console.warn(err); }
+  };
+}
+function setState(s){
+  const map={preparing:'备赛中…',prepared:'备赛完成',running:'比赛进行中',pausing:'暂停中…',
+    paused:'已暂停',stopping:'停止中…',stopped:'已停止',done:'已结束',error:'出错',idle:'空闲'};
+  document.getElementById('statePill').textContent=map[s]||s;
+  const sb=document.getElementById('statusbar'), pb=document.getElementById('pauseBtn');
+  if(['running','paused','pausing'].includes(s)){ pb.disabled=false; }
+  if(s==='paused'){ paused=true; sb.classList.add('paused'); pb.textContent='▶ 继续'; document.getElementById('phaseInfo').textContent='⏸ 已暂停'; }
+  else if(s==='running'){ paused=false; sb.classList.remove('paused'); pb.textContent='⏸ 暂停'; }
+  else if(['stopped','done','error'].includes(s)){ pb.disabled=true; sb.classList.remove('paused'); clearThinking(); hideAdvance(); }
+  return;
+}
+function handleEvent(e){
+  switch(e.type){
+    case 'status': setState(e.state); break;
+    case 'prep_start': systemLine('🛠️ '+e.name+' 开始备赛…'); break;
+    case 'prep_done': systemLine((e.loaded?'📂 ':'✅ ')+e.name+' 备赛'+(e.ok?(e.loaded?'已载入':'完成'):'失败')); loadBriefs(); break;
+    case 'begin': systemLine('▶️ 比赛开始，共 '+e.total+' 个发言位'); break;
+    case 'phase':
+      document.getElementById('phaseInfo').textContent='🎯 '+e.label+' — '+e.name+'（'+e.side+'）';
+      document.getElementById('progress').textContent='第 '+(e.idx+1)+'/'+e.total+' 位';
+      break;
+    case 'await_advance':
+      clearThinking();
+      document.getElementById('phaseInfo').textContent='⏯ 点「下一句」开始：'+e.name+'（'+e.side+'）发言';
+      showAdvance(e); break;
+    case 'turn_start': hideAdvance(); showThinking(e.name, e.side); break;
+    case 'turn': clearThinking(); renderTurn(e); break;
+    case 'audio': onAudioReady(e); break;
+    case 'host': clearThinking(); renderHost(e.text); break;
+    case 'moderator': renderMod(e); break;
+    case 'await_human':
+      clearThinking();
+      document.getElementById('phaseInfo').textContent='🎤 轮到你：'+e.name+'（'+e.side+'）';
+      openHumanBar(e); break;
+    case 'mic': /* server echo */ break;
+    case 'error': systemLine('⚠️ 错误：'+e.msg); break;
+    case 'done': systemLine('🏁 完成'); setTimeout(loadLibrary,300); break;
+  }
+}
+
+// -------- 渲染 --------
+const stage=()=>document.getElementById('stage');
+function beforeBar(node){
+  const bar=document.getElementById('humanbar');
+  bar.parentNode.insertBefore(node,bar);     // 插入实况标签页（humanbar 所在容器）
+  node.scrollIntoView({behavior:'smooth',block:'end'});
+}
+function sideColor(side){
+  // 简单稳定的配色：按出现顺序分配
+  if(!window._sideColors) window._sideColors={};
+  const palette=['var(--pro)','var(--con)','#10b981','#eab308','#ec4899'];
+  if(!(side in window._sideColors))
+    window._sideColors[side]=palette[Object.keys(window._sideColors).length%palette.length];
+  return window._sideColors[side];
+}
+const turnCards={};   // tid -> {el, text, voice, side, engine}
+function renderTurn(e){
+  const d=document.createElement('div'); d.className='turn';
+  const col=sideColor(e.side);
+  const tid=e.tid||('t'+Date.now());
+  d.dataset.tid=tid;
+  d.innerHTML=`<div class="meta">
+      <span class="badge" style="background:${col}"></span>
+      <span class="who" style="color:${col}">${esc(e.name)}</span>
+      <span class="lab">${esc(e.side)} · ${esc(e.label)} · ${e.kind==='human'?'真人':'AI'}</span>
+      <span class="replay" data-tid="${tid}"></span>
+      <span class="cc">${e.char_count}字</span>
+    </div><div class="body md">${mdToHtml(e.text)}</div>`;
+  beforeBar(d);
+  turnCards[tid]={el:d, text:e.text, voice:e.voice, side:e.side, engine:e.tts_engine};
+  if(e.kind==='human') return;                 // 真人发言不合成（本人已说出）
+  if(e.server_tts){
+    setReplay(tid,'pending');                    // 服务端引擎：等后台 audio 事件补播
+  }else{
+    setReplay(tid,'browser');
+    speakText(e.text, e.voice, e.side);          // 客户端引擎：即时朗读（零延迟）
+  }
+}
+function setReplay(tid, mode, url){
+  const span=document.querySelector('.replay[data-tid="'+tid+'"]'); if(!span) return;
+  if(mode==='pending'){ span.textContent='🔊 合成中…'; span.style.color='var(--dim)'; span.onclick=null; return; }
+  span.className='audioicon replay'; span.style.cursor='pointer'; span.textContent='🔊 重播';
+  if(mode==='edge'&&url){ span.onclick=()=>playAudio(url); }
+  else { const c=turnCards[tid]; span.onclick=()=>speakText(c.text,c.voice,c.side,true); }
+}
+// edge 后台合成完成：补播 + 把对应发言的「重播」接上 mp3
+function onAudioReady(e){
+  if(!turnCards[e.tid]) return;
+  setReplay(e.tid,'edge',e.audio_url);
+  enqueueAudio(e.audio_url);
+}
+// 「正在发言…」占位：AI 思考/生成期间给出反馈，发言到达即移除。
+let thinkingEl=null;
+function showThinking(name, side){
+  clearThinking();
+  const d=document.createElement('div'); d.className='thinking-card recording';
+  d.textContent='🤖 '+name+'（'+side+'）正在发言…';
+  thinkingEl=d; beforeBar(d);
+}
+function clearThinking(){ if(thinkingEl){ thinkingEl.remove(); thinkingEl=null; } }
+function renderHost(text){
+  const d=document.createElement('div'); d.className='turn host';
+  d.innerHTML=`<div class="meta"><span class="who">🎤 主持人</span></div><div class="body md">${mdToHtml(text)}</div>`;
+  beforeBar(d);
+}
+function renderMod(e){
+  const d=document.createElement('div'); d.className='turn mod';
+  d.innerHTML=`<div class="meta"><span class="who">⚖️ 主审</span><span class="lab">${esc(e.label)}</span></div>
+    <div class="body md">${mdToHtml(e.text)}</div>`;
+  beforeBar(d);
+}
+function systemLine(text){
+  const d=document.createElement('div'); d.className='turn sys';
+  d.textContent=text; beforeBar(d);
+}
+function markSpeaking(name,label){ /* 可扩展高亮，当前留空 */ }
+function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+
+// -------- 轻量 Markdown 渲染（无外部依赖，离线可用）--------
+function mdInline(s){
+  return s
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+    .replace(/__([^_]+)__/g,'<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*\n]+)\*/g,'$1<em>$2</em>')
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+}
+function mdToHtml(src){
+  if(!src) return '';
+  var blocks=[];
+  var s=String(src).replace(/```([\s\S]*?)```/g,function(m,c){blocks.push(c.replace(/^[a-zA-Z0-9]*\n/,''));return '@@CB'+(blocks.length-1)+'@@';});
+  s=esc(s);
+  var lines=s.split('\n'), html='', listType=null, para=[];
+  function closeList(){ if(listType){html+='</'+listType+'>';listType=null;} }
+  function flush(){ if(para.length){html+='<p>'+mdInline(para.join('<br>'))+'</p>';para=[];} }
+  for(var k=0;k<lines.length;k++){
+    var line=lines[k], t=line.trim(), m;
+    if(/^@@CB\d+@@$/.test(t)){ flush();closeList();html+=t; continue; }
+    if(m=line.match(/^(#{1,4})\s+(.*)$/)){ flush();closeList();var lv=Math.min(4,m[1].length);html+='<h'+lv+'>'+mdInline(m[2])+'</h'+lv+'>'; continue; }
+    if(m=line.match(/^&gt;\s?(.*)$/)){ flush();closeList();html+='<blockquote>'+mdInline(m[1])+'</blockquote>'; continue; }
+    var ul=line.match(/^[\-\*]\s+(.*)$/), ol=line.match(/^\d+\.\s+(.*)$/);
+    if(ul||ol){ flush(); var ty=ul?'ul':'ol'; if(listType!==ty){closeList();html+='<'+ty+'>';listType=ty;} html+='<li>'+mdInline((ul||ol)[1])+'</li>'; continue; }
+    if(t===''){ flush();closeList(); continue; }
+    para.push(line);
+  }
+  flush();closeList();
+  return html.replace(/@@CB(\d+)@@/g,function(m,i){return '<pre><code>'+esc(blocks[+i])+'</code></pre>';});
+}
+function stripMd(s){
+  return String(s||'').replace(/```[\s\S]*?```/g,' ').replace(/\[([^\]]+)\]\([^)]*\)/g,'$1')
+    .replace(/[#>*_`~]+/g,' ').replace(/\s+/g,' ').trim();
+}
+
+// -------- 浏览器内置语音合成（零延迟，TTS 主引擎）--------
+let _voices=[];
+function loadVoices(){ try{ _voices=window.speechSynthesis?speechSynthesis.getVoices():[]; }catch(e){_voices=[];} }
+if(window.speechSynthesis){ loadVoices(); speechSynthesis.onvoiceschanged=loadVoices; }
+function pickZhVoice(){ if(!_voices.length) loadVoices();
+  return _voices.find(v=>/zh|chinese|中文|普通话/i.test((v.lang||'')+(v.name||''))) || _voices[0] || null; }
+function sidePitch(side){
+  if(!window._sidePitch) window._sidePitch={};
+  const pal=[1.05,0.9,1.15,0.82,1.0];
+  if(!(side in window._sidePitch)) window._sidePitch[side]=pal[Object.keys(window._sidePitch).length%pal.length];
+  return window._sidePitch[side];
+}
+function speakText(text, voice, side, force){
+  if(!window.speechSynthesis) return false;       // 不支持 → 静默（文本已显示）
+  if(ttsMuted && !force) return false;
+  const plain=stripMd(text); if(!plain) return false;
+  const u=new SpeechSynthesisUtterance(plain);
+  u.lang='zh-CN'; const v=pickZhVoice(); if(v) u.voice=v;
+  u.rate=1.05; u.pitch=sidePitch(side||'');
+  speechSynthesis.speak(u); return true;
+}
+
+// -------- 音频自动顺序播放 --------
+let _silentAudio=null;
+function unlockAudio(){
+  try{ const a=new Audio(); a.play().catch(()=>{}); }catch(e){}
+}
+let ttsMuted=false, paused=false;
+function enqueueAudio(url){ if(ttsMuted) return; audioQueue.push(url); if(!audioPlaying) playNext(); }
+function playNext(){
+  if(ttsMuted){ audioQueue.length=0; audioPlaying=false; return; }
+  if(!audioQueue.length){ audioPlaying=false; return; }
+  audioPlaying=true;
+  const url=audioQueue.shift();
+  const a=new Audio(url);
+  a.onended=playNext; a.onerror=playNext;
+  a.play().catch(()=>playNext());
+}
+function playAudio(url){ try{ new Audio(url).play().catch(()=>{}); }catch(e){} }  // 单条重播，无视静音
+function toggleMute(){
+  ttsMuted=!ttsMuted;
+  const b=document.getElementById('muteBtn');
+  b.textContent=ttsMuted?'🔇 语音关':'🔊 语音开';
+  if(ttsMuted){ audioQueue.length=0; audioPlaying=false;
+    try{ window.speechSynthesis && speechSynthesis.cancel(); }catch(e){} }   // 同时停浏览器语音
+}
+async function togglePause(){
+  if(paused){ await post('/api/resume'); }
+  else { await post('/api/pause'); }
+}
+function doExport(){ window.open('/api/export', '_blank'); }
+// -------- 标签页 + 备赛材料（Markdown 渲染）--------
+function showTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  document.getElementById('liveTab').style.display = name==='live'?'flex':'none';
+  document.getElementById('prepTab').style.display = name==='prep'?'flex':'none';
+  if(name==='prep') loadBriefs();
+}
+async function loadBriefs(){
+  let briefs=[];
+  try{ briefs=(await (await fetch('/api/briefs')).json()).briefs||[]; }catch(e){ return; }
+  const withText=briefs.filter(b=>(b.brief||'').trim());
+  document.getElementById('prepDot').style.display = withText.length?'inline-block':'none';
+  const box=document.getElementById('prepList');
+  const empty=document.getElementById('prepEmpty');
+  if(!withText.length){ box.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display='none';
+  box.innerHTML=withText.map(b=>`<div class="prep-card">
+      <h3 class="hd" style="color:${sideColor(b.side)}">🤖 ${esc(b.name)} <span class="small">（${esc(b.side)}）</span></h3>
+      <div class="md">${mdToHtml(b.brief)}</div></div>`).join('');
+}
+// 逐句手动推进：点「下一句」才让下一句 AI 发言生成
+function showAdvance(e){
+  const b=document.getElementById('advanceBtn');
+  b.textContent='▶ 下一句：'+e.name; b.style.display='';
+}
+function hideAdvance(){ document.getElementById('advanceBtn').style.display='none'; }
+async function doAdvance(){
+  unlockAudio();              // 用户手势 → 解锁音频自动播放
+  hideAdvance();
+  await post('/api/advance');
+}
+
+// -------- 真人发言条 + 语音识别 --------
+function openHumanBar(e){
+  const bar=document.getElementById('humanbar'); bar.classList.add('show');
+  document.getElementById('humanName').textContent='👉 '+e.name+' 发言';
+  document.getElementById('humanLab').textContent=e.label+'（上限'+e.max_chars+'字）';
+  document.getElementById('humanOpp').textContent=e.last_opponent?('对方上轮：'+e.last_opponent):'';
+  recogBase='';
+  document.getElementById('humanText').value='';
+  document.getElementById('humanText').focus();
+  bar.scrollIntoView({behavior:'smooth'});
+  startTimer(e.seconds||60);   // 真人发言倒计时；归零自动提交（计时到点结束本轮）
+  if(micEnabled) startRecog();
+}
+function closeHumanBar(){
+  document.getElementById('humanbar').classList.remove('show');
+  clearHuman();
+  stopTimer();
+  stopRecog();
+}
+// -------- 真人发言倒计时 --------
+let timerId=null, timerLeft=0;
+function fmt(s){const m=Math.floor(s/60),x=s%60;return m+':'+(x<10?'0':'')+x;}
+function startTimer(seconds){
+  stopTimer(); timerLeft=Math.max(1,Math.round(seconds));
+  const el=document.getElementById('humanTimer');
+  const paint=()=>{
+    el.textContent=fmt(timerLeft);
+    el.classList.toggle('warn', timerLeft<=Math.max(10,seconds*0.34) && timerLeft>5);
+    el.classList.toggle('danger', timerLeft<=5);
+  };
+  paint();
+  timerId=setInterval(()=>{
+    if(paused) return;        // 暂停时不走表
+    timerLeft--; paint();
+    if(timerLeft<=0){ stopTimer(); autoSubmitOnTimeout(); }
+  },1000);
+}
+function stopTimer(){ if(timerId){clearInterval(timerId); timerId=null;}
+  const el=document.getElementById('humanTimer'); el.classList.remove('warn','danger'); }
+async function autoSubmitOnTimeout(){
+  // 时间到：自动提交当前已说/已打的内容（即便为空 → 视为弃权本轮），结束本轮。
+  if(!document.getElementById('humanbar').classList.contains('show')) return;
+  const text=document.getElementById('humanText').value.trim();
+  document.getElementById('humanTimer').textContent='0:00';
+  await post('/api/human_turn',{text});
+  closeHumanBar();
+}
+async function submitHuman(){
+  const text=document.getElementById('humanText').value.trim();
+  if(!text){ if(!confirm('发言为空，确定弃权本轮？')) return; }
+  await post('/api/human_turn',{text});
+  closeHumanBar();
+}
+function clearHuman(){ recogBase=''; document.getElementById('humanText').value=''; }
+
+function toggleMic(){
+  micEnabled=!micEnabled;
+  const b=document.getElementById('micbtn');
+  b.textContent='🎤 麦克风：'+(micEnabled?'开':'关');
+  b.classList.toggle('on',micEnabled);
+  post('/api/mic',{on:micEnabled});
+  if(micEnabled){ if(document.getElementById('humanbar').classList.contains('show')) startRecog(); }
+  else stopRecog();
+}
+function initRecog(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ return null; }
+  const r=new SR(); r.lang='zh-CN'; r.continuous=true; r.interimResults=true;
+  r.onstart=()=>{recognizing=true;document.getElementById('micbtn').classList.add('recording')};
+  r.onend=()=>{recognizing=false;document.getElementById('micbtn').classList.remove('recording');
+    // 若仍在发言且麦克风开，自动续听
+    if(micEnabled && document.getElementById('humanbar').classList.contains('show')){
+      try{r.start()}catch(e){}
+    }};
+  r.onerror=()=>{};
+  r.onresult=(ev)=>{
+    let interim='', finalT='';
+    for(let i=ev.resultIndex;i<ev.results.length;i++){
+      const t=ev.results[i][0].transcript;
+      if(ev.results[i].isFinal) finalT+=t; else interim+=t;
+    }
+    if(finalT) recogBase+=finalT;
+    document.getElementById('humanText').value=recogBase+interim;
+  };
+  return r;
+}
+function startRecog(){
+  if(!micEnabled) return;
+  if(!recog) recog=initRecog();
+  if(!recog){ micUnsupported(); return; }
+  applySttPhrases(recog);
+  try{ recog.start(); }catch(e){}
+}
+function stopRecog(){ if(recog && recognizing){ try{recog.stop()}catch(e){} } }
+function micUnsupported(){
+  micEnabled=false;
+  const b=document.getElementById('micbtn');
+  b.textContent='🎤 浏览器不支持语音，请打字';
+  b.classList.remove('on');
+}
+// -------- 辩论库（保存/载入/跳过备赛） --------
+async function loadLibrary(){
+  try{
+    const data=await (await fetch('/api/library')).json();
+    renderLibrary(data.entries||[]);
+  }catch(e){ console.warn(e); }
+}
+function renderLibrary(entries){
+  const box=document.getElementById('library');
+  if(!entries.length){ box.innerHTML='<div class="small">（暂无保存。建立或备赛后会出现在这里）</div>'; return; }
+  box.innerHTML='';
+  entries.forEach(e=>{
+    const names=(e.debaters||[]).map(d=>(d.kind==='human'?'🧑':'🤖')+d.name).join(' · ');
+    const prep=e.has_prep?'<span class="tag" style="color:var(--accent2)">备赛✓</span>':'<span class="tag">未备赛</span>';
+    const rec=e.has_transcript?'<span class="tag" style="color:var(--host)">记录✓</span>':'';
+    const div=document.createElement('div'); div.className='libentry';
+    div.innerHTML=`<div class="hd"><span class="who" style="flex:1">${esc(e.topic)}</span>
+        <button class="sm" onclick="doDeleteEntry('${e.id}')">✕</button></div>
+      <div class="small" style="margin:2px 0 6px">${esc(names)}</div>
+      <div style="margin-bottom:6px">${prep} ${rec} <span class="small">${(e.saved_at||'').slice(0,16).replace('T',' ')}</span></div>
+      <div class="row">
+        <button class="primary sm" style="flex:2" onclick="doLoad('${e.id}')">载入${e.has_prep?'（可跳过备赛直接开始）':''}</button>
+        ${e.has_transcript?`<button class="sm" style="flex:1" onclick="viewTranscript('${e.id}')">看记录</button>`:''}
+      </div>`;
+    box.appendChild(div);
+  });
+}
+function applyMeta(m){
+  if(!m) return;
+  const set=(id,v)=>{const e=document.getElementById(id); if(e!=null&&v!=null) e.value=v;};
+  set('topic',m.topic); set('rules',m.rules||''); set('wpm',m.wpm);
+  document.getElementById('use_moderator').checked=!!m.use_moderator;
+  document.getElementById('modcfg').style.display=m.use_moderator?'grid':'none';
+  if(m.moderator_model) document.getElementById('moderator_model').value=m.moderator_model;
+  if(m.moderator_thinking) document.getElementById('moderator_thinking').value=m.moderator_thinking;
+  document.getElementById('double_check').checked=!!m.double_check;
+  document.getElementById('manual_advance').checked=(m.manual_advance!==false);
+  if(m.tts_engine) document.getElementById('tts_engine').value=m.tts_engine;
+  if(m.stt_provider){ const sp=document.getElementById('stt_provider'); if(sp) sp.value=m.stt_provider; }
+  setSttKeywords(Array.isArray(m.stt_keywords)?m.stt_keywords:[], Array.isArray(m.stt_keywords)?'已保存':'未保存');
+  // 持方立场放辩题下方：从各阵营辩手里取首个非空立场回填。
+  const firstStance=side=>((m.debaters||[]).find(d=>d.side===side&&String(d.stance||'').trim())||{}).stance||'';
+  set('stance_pro',firstStance(SIDES[0])); set('stance_con',firstStance(SIDES[1]));
+  document.getElementById('debaters').innerHTML='';
+  (m.debaters||[]).forEach(d=>addDebater(d.kind,d.side,d));
+  MODULES=Array.isArray(m.modules)?m.modules.map(x=>Object.assign({},x)):[];
+  renderModules(); syncSeats();
+}
+async function doLoad(id){
+  const res=await post('/api/load',{id});
+  if(res.error){ alert('载入失败：'+res.error); return; }
+  applyMeta(res.meta);
+  afterCreated(res.meta?res.meta.topic:'');
+  connectSSE();
+  systemLine('已载入：'+(res.meta?res.meta.topic:id)+(res.has_prep?'（备赛已就绪，可直接「开始辩论」跳过备赛）':'（无已存备赛，可先备赛或直接开始）'));
+}
+async function doDeleteEntry(id){
+  if(!confirm('删除这条保存的辩论？')) return;
+  await post('/api/library_delete',{id});
+  loadLibrary();
+}
+async function viewTranscript(id){
+  const d=await (await fetch('/api/transcript?id='+encodeURIComponent(id))).json();
+  document.getElementById('emptyHint').style.display='none';
+  systemLine('—— 历史记录：'+((d.meta||{}).topic||id)+' ——');
+  (d.rows||[]).forEach(r=>{
+    if(r.kind==='moderator') renderMod({label:r.label,text:r.text});
+    else renderTurn({name:r.speaker,side:r.side,label:r.label,kind:r.kind,text:r.text,audio_url:'',char_count:r.char_count});
+  });
+}
+
+// 初始麦克风按钮态
+document.getElementById('micbtn').classList.add('on');
+
+loadOptions();
+loadLibrary();
+</script>
+</body>
+</html>
